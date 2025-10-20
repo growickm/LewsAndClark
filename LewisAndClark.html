@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lewis & Clark: Corps of Discovery</title>
+    <style>
+        /* Core Layout and Typography */
+        body {
+            font-family: 'Georgia', serif;
+            background-color: #e6e6dc; /* Off-white, paper-like background */
+            color: #333;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            min-height: 100vh;
+        }
+
+        #game-container {
+            background-color: #fff;
+            border: 3px solid #6b4423; /* Darker brown border for a classic look */
+            box-shadow: 8px 8px 0 rgba(0, 0, 0, 0.2);
+            max-width: 900px;
+            width: 100%;
+            padding: 20px;
+            box-sizing: border-box;
+            display: grid;
+            grid-template-areas:
+                "header header"
+                "status display"
+                "status choices"
+                "journal journal";
+            grid-template-columns: 1fr 2fr;
+            gap: 20px;
+            border-radius: 8px;
+        }
+
+        h1 {
+            grid-area: header;
+            text-align: center;
+            color: #4a3424;
+            border-bottom: 2px solid #a0a090;
+            padding-bottom: 10px;
+            margin-top: 0;
+        }
+        
+        /* Status Panel */
+        #status-panel {
+            grid-area: status;
+            background-color: #f5f5e6; /* Lighter background for the status area */
+            border: 1px solid #a0a090;
+            padding: 15px;
+            line-height: 1.6;
+            border-radius: 4px;
+        }
+
+        #status-panel h2 {
+            color: #6b4423;
+            margin-top: 0;
+            font-size: 1.2em;
+            text-align: center;
+        }
+
+        #status-panel hr {
+            border-color: #d4d4d4;
+        }
+
+        /* Game Display and Choices */
+        #game-display {
+            grid-area: display;
+            min-height: 150px;
+            padding: 15px;
+            border: 1px solid #a0a090;
+            background-color: #ffffff;
+            border-radius: 4px;
+            font-size: 1.1em;
+            line-height: 1.5;
+        }
+
+        #choices-panel {
+            grid-area: choices;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .choice-btn {
+            background-color: #4a3424;
+            color: white;
+            border: 2px solid #333;
+            padding: 12px 15px;
+            cursor: pointer;
+            font-size: 1em;
+            text-align: left;
+            transition: background-color 0.2s, transform 0.1s;
+            border-radius: 4px;
+        }
+
+        .choice-btn:hover {
+            background-color: #6b4423;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .choice-btn:disabled {
+            background-color: #999;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        /* Journal Log */
+        #journal-log {
+            grid-area: journal;
+            margin-top: 20px;
+            border-top: 2px dashed #a0a090;
+            padding-top: 15px;
+        }
+
+        #journal-log h3 {
+            color: #4a3424;
+            text-align: center;
+        }
+
+        .journal-entry {
+            background-color: #fffbef; /* Slightly yellowish for a journal feel */
+            border-left: 5px solid #6b4423;
+            padding: 10px;
+            margin-bottom: 10px;
+            font-style: italic;
+            border-radius: 4px;
+        }
+
+        /* Modal for Game Over/Win */
+        #modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.85);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+
+        #modal-content {
+            background-color: #fff;
+            padding: 40px;
+            border: 5px solid #4a3424;
+            text-align: center;
+            max-width: 600px;
+            width: 90%;
+            border-radius: 8px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+        }
+
+        #modal-title {
+            font-size: 2.2em;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+        }
+
+        #modal-summary {
+            text-align: left;
+            margin: 20px auto;
+            max-width: 80%;
+            border-top: 1px solid #ccc;
+            padding-top: 15px;
+        }
+
+        #restart-btn {
+            background-color: #38761d; /* Oregon Trail green */
+            color: white;
+            padding: 15px 30px;
+            font-size: 1.2em;
+            margin-top: 20px;
+            cursor: pointer;
+            border: none;
+            border-radius: 6px;
+            transition: background-color 0.2s;
+        }
+
+        #restart-btn:hover {
+            background-color: #6aa84f;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        /* Resource Coloring */
+        .color-green { color: #38761d; font-weight: bold; }
+        .color-yellow { color: #cc7000; font-weight: bold; }
+        .color-red { color: #a00; font-weight: bold; }
+
+        /* Responsive Design for smaller screens */
+        @media (max-width: 768px) {
+            #game-container {
+                grid-template-areas:
+                    "header"
+                    "status"
+                    "display"
+                    "choices"
+                    "journal";
+                grid-template-columns: 1fr;
+                padding: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <h1>Lewis & Clark: The Corps of Discovery</h1>
+        <div id="status-panel">
+            <h2>Expedition Status</h2>
+            <p>👥 **Members:** <span id="stat-members" class="color-green">30</span></p>
+            <p>📅 **Date:** <span id="stat-month">May 1804</span></p>
+            <p>📍 **Location:** <span id="stat-location">St. Louis, MO</span></p>
+            <p>🗺️ **Progress:** <span id="stat-progress">0%</span></p>
+            <p>💼 **Role:** <span id="stat-role">Unassigned</span></p>
+            <hr>
+            <p>💰 **Food:** <span id="res-food">500</span> lbs</p>
+            <p>🏹 **Ammunition:** <span id="res-ammo">100</span> shots</p>
+            <!-- FIX: Changed id from 'res-durability' to 'res-boatDurability' to match JS reference -->
+            <p>🛶 **Boat Durability:** <span id="res-boatDurability">100</span> %</p>
+            <hr>
+            <p>❤️ **Health:** <span id="res-health">100</span> / 100</p>
+            <p>✨ **Morale:** <span id="res-morale">100</span> / 100</p>
+        </div>
+
+        <div id="game-display">
+            <!-- Initial content set by JavaScript -->
+        </div>
+
+        <div id="choices-panel">
+            <!-- Buttons injected by JavaScript -->
+        </div>
+
+        <div id="journal-log">
+            <h3>📜 Expedition Log</h3>
+            <div id="journal-entries"></div>
+        </div>
+
+        <!-- The Game Over/Win Modal -->
+        <div id="modal" class="hidden">
+            <div id="modal-content">
+                <h2 id="modal-title"></h2>
+                <p id="modal-message"></p>
+                <div id="modal-summary"></div>
+                <button id="restart-btn">Restart Expedition</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- Game Constants and Initial State ---
+        const MONTHS = ["May", "June", "July", "August", "September", "October", "November", "December", "January", "February", "March", "April"];
+        
+        // Progress goals for major milestones (Total progress 200 = Win)
+        const LOCATIONS = [
+            { name: "St. Louis, MO", progress: 0 },
+            { name: "Mouth of the Platte River", progress: 20 },
+            { name: "Mandan Villages (Fort Mandan)", progress: 50, winter: true, journal: "Wintering at Mandan" },
+            { name: "Gates of the Mountains", progress: 80 },
+            { name: "Rocky Mountain Foothills", progress: 100, journal: "Rocky Mountains Sighted", danger: true },
+            { name: "Bitterroot Mountains Pass", progress: 120, winter: true, danger: true },
+            { name: "Columbia River", progress: 140 },
+            { name: "Fort Clatsop (Pacific Ocean)", progress: 160, journal: "Pacific Sighted" },
+            { name: "Return Journey Started", progress: 170 },
+            { name: "Return to St. Louis", progress: 200, win: true }
+        ];
+        
+        const ROLE_BONUSES = {
+            Lewis: { leadership: 20, hunting: 0, navigation: 5, legacy: 5, diplomacy: 5 }, // Added diplomacy for completeness
+            Clark: { leadership: 5, hunting: 0, navigation: 20, legacy: 5, diplomacy: 0 },
+            Translator: { leadership: 0, hunting: 0, diplomacy: 25, legacy: 0, navigation: 0 },
+            Hunter: { leadership: 0, hunting: 25, navigation: 0, legacy: 0, diplomacy: 0 },
+            Navigator: { leadership: 0, hunting: 5, navigation: 15, legacy: 0, diplomacy: 0 },
+            Journalist: { leadership: 0, hunting: 0, navigation: 0, legacy: 25, diplomacy: 0 }
+        };
+
+        let gameState;
+
+        // --- DOM Element References ---
+        const gameDisplay = document.getElementById('game-display');
+        const choicesPanel = document.getElementById('choices-panel');
+        const journalEntries = document.getElementById('journal-entries');
+        const modal = document.getElementById('modal');
+        const modalTitle = document.getElementById('modal-title');
+        const modalMessage = document.getElementById('modal-message');
+        const modalSummary = document.getElementById('modal-summary');
+        const restartBtn = document.getElementById('restart-btn');
+
+        // --- Resource Management and Helper Functions ---
+
+        /** Initializes or resets the game state. */
+        function resetGameState() {
+            return {
+                resources: { food: 500, ammo: 100, health: 100, morale: 100, boatDurability: 100 },
+                expeditionMembers: 30,
+                role: null,
+                progress: 0,
+                locationIndex: 0,
+                monthIndex: 0,
+                year: 1804,
+                journal: [],
+                gameOver: false,
+                diplomacy: 50,
+                isWinter: false,
+                roleBonuses: {}
+            };
+        }
+
+        /** Safely modifies a resource and clamps it between 0 and 100 (for percentages). */
+        function applyConsequence(resource, change) {
+            if (resource === 'food' || resource === 'ammo' || resource === 'diplomacy') {
+                // Ensure food, ammo, diplomacy don't go below zero
+                gameState.resources[resource] = Math.max(0, (gameState.resources[resource] || gameState[resource] || 0) + change);
+            } else if (resource === 'health' || resource === 'morale' || resource === 'boatDurability') {
+                // Clamped resources (0-100)
+                gameState.resources[resource] = Math.max(0, Math.min(100, gameState.resources[resource] + change));
+            } else if (resource === 'members') {
+                gameState.expeditionMembers = Math.max(0, gameState.expeditionMembers + change);
+            } else if (resource === 'progress') {
+                gameState.progress = Math.min(200, gameState.progress + change);
+            }
+        }
+
+        /** Updates the UI with the current game state. */
+        function updateUI() {
+            const res = gameState.resources;
+            const currentMonth = MONTHS[gameState.monthIndex % 12];
+            const currentYear = gameState.year;
+            const currentLocation = LOCATIONS[gameState.locationIndex];
+
+            // Update Status Panel
+            document.getElementById('stat-members').textContent = gameState.expeditionMembers;
+            document.getElementById('stat-month').textContent = `${currentMonth} ${currentYear}`;
+            document.getElementById('stat-location').textContent = currentLocation.name;
+            document.getElementById('stat-progress').textContent = `${Math.min(100, Math.floor(gameState.progress / 2))}%`;
+            document.getElementById('stat-role').textContent = gameState.role || 'Unassigned';
+
+            // Resource Updates
+            document.getElementById('res-food').textContent = res.food;
+            document.getElementById('res-ammo').textContent = res.ammo;
+
+            // Health, Morale, Durability with color coding
+            const resourcesToColor = ['health', 'morale', 'boatDurability'];
+            resourcesToColor.forEach(r => {
+                const element = document.getElementById(`res-${r}`);
+                if (element) { // Safety check added
+                    const value = res[r];
+                    element.textContent = `${value} %`; 
+                    element.className = ''; // Clear previous classes
+                    if (value > 75) {
+                        element.classList.add('color-green');
+                    } else if (value > 40) {
+                        element.classList.add('color-yellow');
+                    } else {
+                        element.classList.add('color-red');
+                    }
+                }
+            });
+            
+            // Morale check for game-breaking low morale (mutiny)
+            if (res.morale <= 10 && gameState.role !== null) {
+                gameDisplay.innerHTML += '<p class="color-red">**Warning:** The men are nearing mutiny! Address morale immediately.</p>';
+            }
+        }
+
+        /** Updates the game display with new narrative and choices. */
+        function updateGameDisplay(prompt, choices) {
+            gameDisplay.innerHTML = `<p>${prompt}</p>`;
+            choicesPanel.innerHTML = '';
+
+            choices.forEach(choice => {
+                const btn = document.createElement('button');
+                btn.classList.add('choice-btn');
+                btn.textContent = choice.text;
+                btn.onclick = () => handleChoice(choice.action);
+                
+                // Disable button if a check is required (e.g., ammo for hunting)
+                if (choice.condition && !choice.condition()) {
+                    btn.disabled = true;
+                    btn.textContent += " (Requires more supplies/health)";
+                }
+
+                choicesPanel.appendChild(btn);
+            });
+            
+            updateUI();
+            checkGameEnd();
+        }
+
+        /** Advances time and checks for winter conditions. */
+        function advanceTime(months = 1) {
+            const oldMonthIndex = gameState.monthIndex;
+            gameState.monthIndex += months;
+            if (gameState.monthIndex >= MONTHS.length) {
+                gameState.year += Math.floor(gameState.monthIndex / 12);
+                gameState.monthIndex %= 12;
+            }
+
+            // Check for winter (November, December, January, February)
+            const currentMonth = gameState.monthIndex % 12;
+            // Months index: 0=May, 6=Nov, 7=Dec, 8=Jan, 9=Feb
+            gameState.isWinter = (currentMonth >= 6 || currentMonth <= 9); 
+
+            // Check for new location milestone
+            const currentProgress = gameState.progress;
+            const nextLocation = LOCATIONS[gameState.locationIndex + 1];
+            
+            if (nextLocation && currentProgress >= nextLocation.progress) {
+                gameState.locationIndex++;
+                if (nextLocation.journal) {
+                    addJournalEntry(generateJournalEntry(nextLocation.journal), true);
+                }
+            }
+
+            // Consumption (Monthly Base)
+            const consumptionRate = gameState.isWinter ? 60 : 50; // Harsher consumption in winter
+            applyConsequence('food', -(consumptionRate * months));
+            applyConsequence('health', -2 * months);
+            applyConsequence('morale', -3 * months);
+        }
+
+        /** Adds a new entry to the in-game journal. */
+        function addJournalEntry(entry, isDiscovery = false) {
+            const date = `${MONTHS[gameState.monthIndex % 12]} ${gameState.year}`;
+            const role = gameState.role || 'A Member';
+            const logText = isDiscovery 
+                ? `**${date}:** *[Discovery]* The ${role} writes: "${entry}"`
+                : `**${date}:** *[Log]* The ${role} writes: "${entry}"`;
+
+            gameState.journal.unshift({ date, entry: logText });
+            
+            const entryDiv = document.createElement('div');
+            entryDiv.classList.add('journal-entry');
+            entryDiv.innerHTML = logText;
+            journalEntries.prepend(entryDiv); // Prepend to show newest at top
+        }
+        
+        /** Generates a journal entry based on a milestone. */
+        function generateJournalEntry(milestone) {
+            switch(milestone) {
+                case "Wintering at Mandan":
+                    return `We have erected Fort Mandan. The Mandan people are a great help. The ice on the river is thick, and the cold is bitter. Thank God for the provisions we secured. Here, we secured the services of **Sacagawea**, a most valuable guide.`;
+                case "Rocky Mountains Sighted":
+                    return `The sight of the great, jagged backbone of the continent—the **Rocky Mountains**—fills the men with awe and trepidation. They are far higher than any man had reported. We must soon seek the Shoshone for horses.`;
+                case "Pacific Sighted":
+                    return `**OCEA N IN VIEW!** O! The Joy! After 18 months of tireless travel, the Great Western Sea is before us. We have reached our destination, though the journey home remains. We will build Fort Clatsop for the winter.`;
+                default:
+                    return `A significant step in our journey achieved at ${LOCATIONS[gameState.locationIndex].name}.`;
+            }
+        }
+
+        // --- Game End Functions ---
+        
+        /** Checks for Game Over or Win conditions. */
+        function checkGameEnd() {
+            const res = gameState.resources;
+
+            if (gameState.progress >= LOCATIONS[LOCATIONS.length - 1].progress) {
+                // True Win: Reached the Pacific and returned.
+                endGame(true, "VICTORY! The West is Claimed!");
+                return true;
+            }
+
+            if (res.food <= 0) {
+                endGame(false, "DEFEAT: Starvation", "Your food ran out. The expedition members, weakened by hunger, perished from illness and exposure.");
+                return true;
+            }
+            if (res.morale <= 0) {
+                endGame(false, "DEFEAT: Mutiny", "Morale dropped to zero. The men, weary and hopeless, turned on their officers and disbanded the Corps of Discovery.");
+                return true;
+            }
+            if (res.health <= 0 || gameState.expeditionMembers <= 5) {
+                endGame(false, "DEFEAT: Disease and Loss", "The ravages of sickness and the wilderness reduced your numbers until the expedition could no longer proceed.");
+                return true;
+            }
+            if (res.boatDurability <= 0) {
+                endGame(false, "DEFEAT: Capsized", "The main keelboat was destroyed in the rapids. Without it, the vast amount of necessary supplies were lost.");
+                return true;
+            }
+
+            return false;
+        }
+
+        /** Displays the Game Over or Win modal. */
+        function endGame(win, title, message) {
+            gameState.gameOver = true;
+            modal.classList.remove('hidden');
+
+            const res = gameState.resources;
+
+            if (win) {
+                modalTitle.textContent = title;
+                modalTitle.style.color = '#38761d';
+                modalMessage.textContent = "You successfully navigated the path to the Pacific and returned to St. Louis, fulfilling President Jefferson's mission. Your legacy is secured!";
+            } else {
+                modalTitle.textContent = title;
+                modalTitle.style.color = '#a00';
+                modalMessage.textContent = message;
+            }
+
+            // Calculate Legacy Impact
+            const legacyScore = Math.floor(res.food * 0.1) + Math.floor(res.ammo * 0.2) + Math.floor(res.health * 0.5) + Math.floor(res.morale * 0.8) + (gameState.expeditionMembers * 10) + (gameState.roleBonuses.legacy || 0);
+
+            modalSummary.innerHTML = `
+                <h3>Final Report - The Legacy of the Corps</h3>
+                <p><strong>Time Elapsed:</strong> ${Math.floor(gameState.monthIndex / 12)} years, ${gameState.monthIndex % 12} months</p>
+                <p><strong>Members Lost:</strong> ${30 - gameState.expeditionMembers}</p>
+                <p><strong>Final Supplies:</strong> ${res.food} lbs Food, ${res.ammo} Ammo</p>
+                <p><strong>Final Morale:</strong> ${res.morale}%</p>
+                <p><strong>Total Journal Entries:</strong> ${gameState.journal.length}</p>
+                <p><strong>Legacy Impact Score:</strong> ${legacyScore}</p>
+            `;
+
+            restartBtn.textContent = "Restart Expedition";
+            restartBtn.onclick = initializeGame;
+        }
+
+        // --- Core Game Logic ---
+
+        /** The main game loop driver. */
+        function handleChoice(action) {
+            if (gameState.gameOver) return;
+
+            // Handle the immediate consequence of the choice
+            const outcome = executeAction(action);
+            
+            // Advance time and check for resource consumption (except for special events like resting)
+            if (action !== 'rest_days' && action !== 'trade_attempt' && action !== 'scout_ahead') {
+                advanceTime(1); 
+            }
+            
+            // Generate the next turn's narrative and choices
+            let nextPrompt = `**[${LOCATIONS[gameState.locationIndex].name}]** ${outcome}`;
+            let nextChoices;
+
+            // 30% chance of a random event if progress is being made
+            if (action.includes('travel') && Math.random() < 0.3) {
+                ({ prompt: nextPrompt, choices: nextChoices } = generateRandomEvent());
+            } else {
+                // Standard travel/camp choices
+                nextChoices = [
+                    { text: "Push Forward: Travel hard up the Missouri (High progress, higher risk/fatigue).", action: "travel_hard" },
+                    { text: "Camp & Hunt: Halt to hunt and gather supplies (Restores food/risks ammo).", action: "hunt", condition: () => gameState.resources.ammo >= 10 },
+                    { text: "Rest & Repair: Rest men and inspect the boat (Restores health/morale, uses extra food).", action: "rest", condition: () => gameState.resources.food >= 50 },
+                    { text: "Seek Trade: Attempt to find a native tribe to trade with (Risks diplomacy, gains supplies).", action: "trade", condition: () => gameState.resources.food < 100 }
+                ];
+            }
+            
+            // Append current status for context before the question
+            nextPrompt += `\n\n**Current Status:** Members: ${gameState.expeditionMembers}, Food: ${gameState.resources.food} lbs, Morale: ${gameState.resources.morale}%. ${gameState.isWinter ? 'The cold of **WINTER** is upon you.' : ''}`
+            nextPrompt += "\n\n**What will you do next?**";
+            
+            updateGameDisplay(nextPrompt, nextChoices);
+        }
+
+        /** Executes the action chosen by the player and returns a narrative string. */
+        function executeAction(action) {
+            const bonus = gameState.roleBonuses;
+            let outcome = "";
+
+            switch (action) {
+                case 'travel_hard':
+                    let progressGain = 8 + (Math.random() * 5) + (bonus.navigation / 10);
+                    let fatigue = 15;
+                    let riskRoll = Math.random();
+
+                    applyConsequence('progress', progressGain);
+                    applyConsequence('morale', -fatigue);
+                    
+                    if (riskRoll < 0.25) { // Bad event
+                        applyConsequence('health', -10);
+                        applyConsequence('boatDurability', -10);
+                        outcome = `You pushed the men relentlessly, gaining significant ground, but the boat suffered damage on submerged rocks and several men are exhausted. **Health and Durability dropped.**`;
+                    } else {
+                        outcome = `Excellent progress was made this month! The crew is tired but heartened by the distance covered.`;
+                    }
+                    return outcome;
+
+                case 'hunt':
+                    let huntSuccess = (Math.random() * 100) + bonus.hunting;
+                    applyConsequence('ammo', -10); // Base ammo use
+
+                    if (huntSuccess > 80) {
+                        applyConsequence('food', 250);
+                        applyConsequence('morale', 5);
+                        outcome = `**Major Success!** The hunters, with skill and luck, brought back a vast haul of elk and buffalo meat, replenishing 250 lbs of food.`;
+                    } else if (huntSuccess > 40) {
+                        applyConsequence('food', 100);
+                        outcome = `A decent hunt. You secured 100 lbs of food, enough to stabilize the supplies.`;
+                    } else {
+                        applyConsequence('morale', -10);
+                        applyConsequence('ammo', -5); // Wasted ammo
+                        outcome = `**Failure.** Game was scarce. 5 shots were wasted, and the failure has lowered morale.`;
+                    }
+                    return outcome;
+
+                case 'rest':
+                    applyConsequence('morale', 20);
+                    applyConsequence('health', 15);
+                    applyConsequence('boatDurability', 5);
+                    applyConsequence('food', -50); // Extra consumption while resting
+                    
+                    outcome = `You halted for several days. Health and morale are significantly improved, and the boats were patched up. However, resting consumed an extra 50 lbs of food.`;
+                    return outcome;
+                
+                case 'trade':
+                    let tradeRoll = (Math.random() * 100) + bonus.diplomacy;
+                    applyConsequence('diplomacy', -5); // Base risk of annoyance
+                    
+                    if (tradeRoll > 70) {
+                        applyConsequence('food', 150);
+                        applyConsequence('diplomacy', 10);
+                        addJournalEntry("Encountered a friendly tribe. Our peaceful exchange yielded valuable dried corn and meat. **Diplomacy boosted.**", false);
+                        outcome = `**SUCCESS!** The trade was highly successful, securing 150 lbs of food and boosting future trade relations.`;
+                    } else if (tradeRoll > 40) {
+                        applyConsequence('food', 50);
+                        outcome = `A neutral exchange. You gained 50 lbs of supplies, but the encounter was short and wary.`;
+                    } else {
+                        applyConsequence('morale', -15);
+                        outcome = `**FAILURE.** Misunderstandings led to a tense encounter. You gained no supplies, and the lack of success has lowered morale.`;
+                    }
+                    return outcome;
+
+                // --- Initial Role Selection Actions ---
+                case 'Lewis':
+                case 'Clark':
+                case 'Translator':
+                case 'Hunter':
+                case 'Navigator':
+                case 'Journalist':
+                    gameState.role = action;
+                    gameState.roleBonuses = ROLE_BONUSES[action];
+                    addJournalEntry(`The journey has begun! I have assumed the role of the **${action}** for the Corps of Discovery.`, true);
+                    return "The expedition is underway! The fate of the Louisiana Purchase now rests on your leadership and judgment. The strong current of the Missouri River immediately challenges your progress.";
+                    
+                default:
+                    return "A moment of hesitation. The expedition holds its breath. You must make a decision.";
+            }
+        }
+
+        /** Generates a historical-themed random event. */
+        function generateRandomEvent() {
+            const events = [
+                {
+                    title: "River Rapids: The Great Falls",
+                    prompt: "You have arrived at a treacherous stretch of river, perhaps the **Great Falls**. The water is a maelstrom of rocks and current. Passage by boat is impossible without extreme risk.",
+                    choices: [
+                        {
+                            text: "Portage (Safe, Slow): Spend 5 days hauling all supplies and boats manually.",
+                            action: () => {
+                                applyConsequence('food', -75);
+                                applyConsequence('health', -15);
+                                applyConsequence('progress', 5);
+                                addJournalEntry("The portage of the Falls was a severe labor, exhausting the men but preserving the supplies.", false);
+                                return "The portage was brutal, consuming 75 lbs of food and exhausting the men, but the boats are safe.";
+                            }
+                        },
+                        {
+                            text: "Scout a New Route (Risk, Quick): Send a small scouting party upriver for two days to find a bypass.",
+                            action: () => {
+                                advanceTime(0.06); // Lose 2 days (approx 0.06 months)
+                                if (Math.random() * 100 < 60 + gameState.roleBonuses.navigation) {
+                                    applyConsequence('progress', 15);
+                                    applyConsequence('morale', 10);
+                                    return "Success! A narrow, calm slough was found, allowing for safe and rapid passage, boosting morale.";
+                                } else {
+                                    applyConsequence('health', -10);
+                                    applyConsequence('morale', -15);
+                                    return "The scouting party failed to find a safe route and returned beaten by thick brush. Two men suffered sprains. You must now portage.";
+                                }
+                            }
+                        }
+                    ]
+                },
+                {
+                    title: "Illness Spreads: Dysentery",
+                    prompt: "Poor water quality and lack of sanitation have led to a spread of dysentery among the corps. Several men are severely incapacitated.",
+                    choices: [
+                        {
+                            text: "Rest for Two Weeks: Halt the expedition for 14 days to allow recovery.",
+                            action: () => {
+                                advanceTime(0.5); // Advance half a month
+                                applyConsequence('food', -100);
+                                applyConsequence('health', 15);
+                                return "A slow recovery. The illness is contained, and most men are recovering, but valuable time and food were lost.";
+                            }
+                        },
+                        {
+                            text: "Push Onward: Continue traveling, hoping the ill recover while moving.",
+                            action: () => {
+                                applyConsequence('health', -20);
+                                applyConsequence('morale', -15);
+                                applyConsequence('members', -1);
+                                return "Disaster! One man succumbed to the illness, and the general health of the corps has plummeted. **-1 Member Lost.**";
+                            }
+                        }
+                    ]
+                },
+                {
+                    title: "Meeting Sacagawea",
+                    prompt: "You have arrived near the Mandan villages. A French trader, Charbonneau, has offered his Shoshone wife, **Sacagawea**, as a guide and interpreter for the mountain crossing. She is pregnant.",
+                    choices: [
+                        {
+                            text: "Hire Charbonneau and Sacagawea: Secure their services for the duration of the trip.",
+                            action: () => {
+                                gameState.hasSacagawea = true; // Flag for later event bonuses
+                                applyConsequence('diplomacy', 15);
+                                applyConsequence('morale', 10);
+                                addJournalEntry("A brilliant turn of fortune! We have secured the invaluable assistance of Sacagawea. Her presence alone promises success with the Shoshone.", true);
+                                return "Sacagawea is invaluable. Her presence is a sign of peace and has greatly boosted the morale of the entire party.";
+                            }
+                        },
+                        {
+                            text: "Decline Assistance: Rely only on current interpreters.",
+                            action: () => {
+                                applyConsequence('diplomacy', -10);
+                                return "You decline. Charbonneau seemed annoyed. You are left with your current resources, but the men feel a missed opportunity to ensure safe passage.";
+                            }
+                        }
+                    ]
+                }
+            ];
+
+            const event = events[Math.floor(Math.random() * events.length)];
+            const standardChoices = [
+                { text: "Continue the Journey", action: "travel_hard" },
+                { text: "Take a Day of Rest", action: "rest" }
+            ];
+
+            // Reformat choices to ensure they return to the main loop
+            const eventChoices = event.choices.map(c => ({
+                text: c.text,
+                condition: c.condition,
+                action: () => {
+                    const consequenceText = c.action();
+                    // After the event, revert to standard choices for the next turn
+                    let nextPrompt = `**[EVENT RESOLVED]** ${event.title} concluded. ${consequenceText}`;
+                    nextPrompt += `\n\n**Current Status:** Members: ${gameState.expeditionMembers}, Food: ${gameState.resources.food} lbs, Morale: ${gameState.resources.morale}%. ${gameState.isWinter ? 'The cold of **WINTER** is upon you.' : ''}`
+                    nextPrompt += "\n\nWhat will you do next?";
+                    updateGameDisplay(nextPrompt, standardChoices);
+                }
+            }));
+
+            return {
+                prompt: `**[RANDOM EVENT] ${event.title}** ${event.prompt}`,
+                choices: eventChoices
+            };
+        }
+
+        /** Sets up the initial screen for role selection. */
+        function initializeGame() {
+            gameState = resetGameState();
+            
+            // Clear UI
+            journalEntries.innerHTML = '';
+            modal.classList.add('hidden');
+            
+            const initialPrompt = `**May 1804. St. Louis, Missouri.** Welcome to the Corps of Discovery. President Jefferson's charge is clear: find the Northwest Passage, map the territory, and establish relations with the Native nations. Your resources are stocked, but the wilderness is vast and unforgiving. The success of this 3-year journey rests on your leadership and your assigned role.`;
+
+            const initialChoices = [
+                { text: "Meriwether Lewis (Leadership Bonus: High Morale/Health effect)", action: "Lewis" },
+                { text: "William Clark (Navigation Bonus: Reduces travel hazards/Higher Progress)", action: "Clark" },
+                { text: "Translator (Diplomacy Bonus: Better trade outcomes)", action: "Translator" },
+                { text: "Hunter (Provisions Bonus: Higher success rate and yield on hunts)", action: "Hunter" },
+                { text: "Navigator (Navigation Bonus: Reduced travel hazards/Higher Progress)", action: "Navigator" },
+                { text: "Journal Keeper (Legacy Bonus: Higher Morale from discoveries)", action: "Journalist" },
+            ];
+            
+            updateGameDisplay(initialPrompt, initialChoices);
+        }
+
+        // --- Start Game ---
+        window.onload = initializeGame;
+    </script>
+</body>
+</html>
